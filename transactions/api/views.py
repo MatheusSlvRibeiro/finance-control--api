@@ -15,9 +15,15 @@ class TransactionViewSet(
     viewsets.ModelViewSet
 ):
 
-    queryset = Transaction.objects.all()
+    queryset = Transaction.objects.none()
     serializer_class = TransactionSerializer
     create_serializer_class = TransactionCreateSerializer
+
+    def get_queryset(self):
+        return Transaction.objects.filter(
+            account__user=self.request.user,
+            deleted_at__isnull=True
+        )
 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'category', 'date']

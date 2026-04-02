@@ -10,9 +10,14 @@ User = get_user_model()
 
 class  UserViewSet(viewsets.ModelViewSet):
     """ Viewset para gerenciar usuários """
-    queryset = User.objects.filter(deleted_at__isnull=True)
+    queryset = User.objects.none()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return User.objects.filter(deleted_at__isnull=True)
+        return User.objects.filter(pk=self.request.user.pk, deleted_at__isnull=True)
 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_staff']

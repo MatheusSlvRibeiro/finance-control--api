@@ -16,9 +16,15 @@ class AccountViewSet(
     viewsets.ModelViewSet
 ):
 
-    queryset = Account.objects.all()
+    queryset = Account.objects.none()
     serializer_class = AccountSerializer
     create_serializer_class = AccountCreateSerializer
+
+    def get_queryset(self):
+        return Account.objects.filter(
+            user=self.request.user,
+            deleted_at__isnull=True
+        )
 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'account_type']

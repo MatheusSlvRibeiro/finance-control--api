@@ -16,13 +16,19 @@ class CategoryViewSet(
     viewsets.ModelViewSet
 ):
 
-    queryset = Category.objects.all()
+    queryset = Category.objects.none()
     serializer_class = CategorySerializer
     create_serializer_class = CategoryCreateSerializer
+
+    def get_queryset(self):
+        return Category.objects.filter(
+            user=self.request.user,
+            deleted_at__isnull=True
+        )
 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'category_type']
     ordering_fields = ['created_at']
-    ordering = ['-created-at']
+    ordering = ['-created_at']
 
     locals().update(swagger_viewset_methods(CATEGORY_TAGS, 'Categorias'))
