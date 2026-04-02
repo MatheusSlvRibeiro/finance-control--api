@@ -1,0 +1,29 @@
+# Variáveis de ambiente
+.env
+
+# Python
+*.pyc
+*.pyo
+__pycache__/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

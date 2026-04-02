@@ -1,12 +1,16 @@
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-5mloro0p-$s$4t-s&+(fys71of(=aifr5c_u8my=x(c#e&uiz_'
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 
 INSTALLED_APPS = [
@@ -104,4 +108,8 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10
 }
 
-CORS_ALLOW_ALL_ORIGINS = True # Mudar em produção!
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+CORS_ALLOWED_ORIGINS = [
+    origin for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if origin
+]
