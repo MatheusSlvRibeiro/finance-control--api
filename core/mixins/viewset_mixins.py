@@ -16,4 +16,4 @@ class CreateSerializerMixin:
     def get_serializer_class(self):
         if self.action == 'create' and self.create_serializer_class:
             return self.create_serializer_class
-        return super().get_serializer_class
+        return super().get_serializer_class()
