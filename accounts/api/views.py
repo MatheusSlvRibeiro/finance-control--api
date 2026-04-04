@@ -26,6 +26,11 @@ class AccountViewSet(
             deleted_at__isnull=True
         )
 
+    def get_serializer_class(self):
+        if self.action in ('update', 'partial_update'):
+            return AccountCreateSerializer
+        return super().get_serializer_class()
+
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'account_type']
     ordering_fields = ['created_at']
