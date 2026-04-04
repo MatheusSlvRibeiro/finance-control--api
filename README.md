@@ -1,163 +1,185 @@
-# Finance Control Backend
+# Finance Control — Backend
 
-Uma API REST robusta desenvolvida em Django para o ecossistema Finance Control, fornecendo funcionalidades essenciais para gestão de finanças pessoais e integração com frontend moderno.
+API REST para controle financeiro pessoal. Fornece autenticação JWT, gerenciamento de contas, transações e categorias com isolamento completo de dados por usuário.
 
-## 📋 Índice
+> Frontend React disponível em: [finance-control--web](https://github.com/MatheusSlvRibeiro/finance-control)
 
-- [Sobre o Projeto](#🚀-sobre-o-projeto)
-- [Tecnologias Utilizadas](#🛠-tecnologias-utilizadas)
-- [Pré-requisitos](#📋-pré-requisitos)
-- [Instalação](#🔧-instalação)
-- [Configuração](#⚙️-configuração)
-- [Banco de Dados](#🗄️-banco-de-dados)
-- [Execução](#🚀-execução)
-- [Desenvolvimento](#💻-desenvolvimento)
-- [API Documentation](#📚-api-documentation)
-- [Testes](#🧪-testes)
-- [Deploy](#🚀-deploy)
-- [Contribuição](#🤝-contribuição)
-- [Licença](#📄-licença)
-- [Notas Técnicas Futuras](#notas-técnicas-futuras)
-- [Changelog](#changelog)
-- [Estrutura Completa do Projeto](#estrutura-completa-do-projeto)
+---
 
-## 🚀 Sobre o Projeto
+## Funcionalidades
 
-O Finance Control Backend é uma API REST desenvolvida em Django que fornece a base para aplicações de controle financeiro. Este projeto oferece:
+- Autenticação com JWT (SimpleJWT — access + refresh token)
+- Cadastro de usuários com onboarding automático (contas e categorias padrão criadas via signal)
+- CRUD completo de contas, transações e categorias
+- Todos os dados isolados por usuário autenticado (sem vazamento entre contas)
+- Soft delete com `deleted_at` em todos os modelos
+- UUID como chave primária em todos os modelos
+- Documentação automática via Swagger e ReDoc
+- Filtros, busca e ordenação em todos os endpoints
 
-- **Autenticação JWT**: Sistema robusto de autenticação com tokens JWT
-- **API RESTful**: Endpoints bem estruturados seguindo padrões REST
-- **Documentação Automática**: Swagger/OpenAPI integrado para documentação da API
-- **Banco SQLite (dev) / PostgreSQL (prod)**: Persistência de dados flexível
-- **Extensibilidade**: Arquitetura modular para fácil adição de novas funcionalidades
+---
 
-## 🛠 Tecnologias Utilizadas
+## Stack
 
-- **Django 5.2.4**
-- **Django REST Framework**
-- **drf-yasg** (Swagger/OpenAPI)
-- **djangorestframework-simplejwt** (JWT)
-- **django-filter**
-- **SQLite** (padrão) / **PostgreSQL** (produção)
-- **Python 3.13+**
+| Camada | Tecnologia |
+|---|---|
+| Framework | Django 5.2 + Django REST Framework |
+| Autenticação | djangorestframework-simplejwt |
+| Documentação | drf-yasg (Swagger/ReDoc) |
+| Filtros | django-filter |
+| Banco (dev) | SQLite |
+| Banco (prod) | PostgreSQL |
+| Servidor (prod) | Gunicorn + Uvicorn |
+| Deploy | Docker |
 
-## 📋 Pré-requisitos
+---
 
-- Python 3.13 ou superior
-- SQLite (padrão) ou PostgreSQL 12+
+## Arquitetura
+
+```
+finance-control--api/
+├── backend/          # Configuração global (settings, urls, wsgi, asgi)
+├── core/
+│   └── mixins/       # BaseModel (UUID + soft delete + timestamps)
+│                     # CreateAllowAnyMixin, CreateSerializerMixin
+│                     # swagger_viewset_methods (decoradores automáticos)
+├── users/            # Usuário customizado (login por email), signal de onboarding
+├── accounts/         # Contas financeiras (checking, wallet, investments)
+├── categories/       # Categorias com tipo, cor e ícone
+└── transactions/     # Transações vinculadas a contas
+```
+
+### Decisões de arquitetura
+
+**BaseModel com UUID e soft delete**
+Todos os modelos herdam de `BaseModel`, que combina `UUIDModel` (UUID como PK) e `TimeStampedModel` (`created_at`, `updated_at`). O método `.delete()` foi sobrescrito para soft delete via `deleted_at`, com `.restore()` e `.hard_delete()` disponíveis.
+
+**Isolamento de dados por usuário**
+Todas as ViewSets sobrescrevem `get_queryset()` filtrando por `request.user`. O atributo de classe `queryset = Model.objects.none()` é mantido apenas para compatibilidade com a geração de schema do drf-yasg.
+
+**Onboarding automático via signal**
+Ao criar um novo usuário, o signal `post_save` cria automaticamente (dentro de `transaction.on_commit`) as contas padrão para cada tipo e as 9 categorias definidas em `categories/defaults.py`. O uso de `on_commit` garante que os objetos só são criados após a transação do usuário ser confirmada.
+
+**CreateAllowAnyMixin**
+Permite que o endpoint `POST /api/v1/users/` seja acessado sem autenticação (para cadastro), enquanto todos os outros métodos exigem `IsAuthenticated`. Reutilizado em todas as ViewSets que precisam desse padrão.
+
+---
+
+## Endpoints
+
+| Recurso | Base URL | Autenticação |
+|---|---|---|
+| Obter token JWT | `POST /api/token/` | Não |
+| Renovar token | `POST /api/token/refresh/` | Não |
+| Usuários | `/api/v1/users/` | Não (POST) / Sim (demais) |
+| Contas | `/api/v1/accounts/` | Sim |
+| Categorias | `/api/v1/categories/` | Sim |
+| Transações | `/api/v1/transactions/` | Sim |
+| Swagger UI | `/swagger/` | Não |
+| ReDoc | `/redoc/` | Não |
+| Admin | `/admin/` | Sim (staff) |
+
+---
+
+## Rodando localmente
+
+### Pré-requisitos
+
+- Python 3.13+
 - Git
 
-## 🔧 Instalação
+### Instalação
 
-1. **Clone o repositório**
+```bash
+# 1. Clone o repositório
+git clone https://github.com/MatheusSlvRibeiro/finance-control-backend.git
+cd finance-control-backend
 
-   ```sh
-   git clone https://github.com/MatheusSlvRibeiro/finance-control-backend.git
-   cd finance-control-backend
-   ```
+# 2. Crie e ative o ambiente virtual
+python -m venv venv
+source venv/bin/activate   # Linux/Mac
+venv\Scripts\activate      # Windows
 
-2. **Crie e ative o ambiente virtual**
+# 3. Instale as dependências
+pip install -r requirements.txt
 
-   ```sh
-   python -m venv venv
-   venv\Scripts\activate  # Windows
-   # ou
-   source venv/bin/activate  # Linux/Mac
-   ```
+# 4. Configure as variáveis de ambiente
+cp .env.example .env
+# Edite .env com sua SECRET_KEY e configurações locais
+```
 
-3. **Instale as dependências**
-   ```sh
-   pip install -r requirements.txt
-   ```
+### Variáveis de ambiente
 
-## ⚙️ Configuração
+Copie `.env.example` para `.env` e preencha:
 
-1. **Crie o arquivo de variáveis de ambiente `.env`** (opcional, se desejar customizar)
+```env
+# Gere uma chave com:
+# python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+SECRET_KEY=sua-secret-key-aqui
 
-   ```
-   SECRET_KEY=sua-chave-secreta
-   DEBUG=True
-   ALLOWED_HOSTS=localhost,127.0.0.1
-   ```
+# True apenas em desenvolvimento local
+DEBUG=True
 
-2. **Configure o banco de dados em `backend/settings.py` se for usar PostgreSQL**
+# Separados por vírgula
+ALLOWED_HOSTS=127.0.0.1,localhost
 
-## 🗄️ Banco de Dados
+# Usado apenas quando DEBUG=False, separados por vírgula
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+```
 
-1. **Aplique as migrações**
+### Banco de dados e execução
 
-   ```sh
-   python manage.py makemigrations
-   python manage.py migrate
-   ```
+```bash
+# Aplica as migrações existentes
+python manage.py migrate
 
-2. **Crie um superusuário**
-   ```sh
-   python manage.py createsuperuser
-   ```
+# Cria superusuário (opcional, para acessar /admin/)
+python manage.py createsuperuser
 
-## 🚀 Execução
-
-```sh
+# Inicia o servidor
 python manage.py runserver
 ```
 
 Acesse: [http://localhost:8000](http://localhost:8000)
 
-## 💻 Desenvolvimento
+Swagger: [http://localhost:8000/swagger/](http://localhost:8000/swagger/)
 
-- Estrutura modular por apps: `accounts`, `categories`, `users`, `core`
-- Uso de mixins para DRY e boas práticas
-- Soft delete, UUID, timestamps em todos os modelos
-
-## 📚 API Documentation
-
-- **Swagger UI**: [http://localhost:8000/swagger/](http://localhost:8000/swagger/)
-- **ReDoc**: [http://localhost:8000/redoc/](http://localhost:8000/redoc/)
-
-### Exemplo de uso da API
+### Exemplo de autenticação
 
 ```bash
-# Obter token JWT
-curl -X POST http://localhost:8000/api/v1/auth/token/ \
+# Obter token JWT (login por email)
+curl -X POST http://localhost:8000/api/token/ \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
+  -d '{"email": "usuario@example.com", "password": "suasenha"}'
+
+# Usar o token nas requisições
+curl http://localhost:8000/api/v1/accounts/ \
+  -H "Authorization: Bearer <access_token>"
 ```
-
-## 🧪 Testes
-
-```sh
-python manage.py test
-```
-
-## 🚀 Deploy
-
-- Pronto para deploy tradicional ou via Docker.
-- Exemplo de build Docker disponível no projeto.
-
-## 🤝 Contribuição
-
-Pull requests são bem-vindos! Para mudanças maiores, abra uma issue para discutir o que você gostaria de modificar.
-
-## 📄 Licença
-
-MIT
-
-## Notas Técnicas Futuras
-
-- Implementar testes automatizados
-- Sistema de permissões avançado
-- Auditoria de alterações
-- Cache com Redis
-- Monitoramento e logging
-- Deploy com Docker em produção
-
-## Changelog
-
-- **2026-01-30**: Estrutura empresarial, documentação Swagger, modularização, soft delete, UUID, melhorias de segurança e escalabilidade.
 
 ---
 
-## Estrutura Completa do Projeto
+## Rodando com Docker
 
-Consulte a estrutura detalhada e padrões de arquitetura em [ESTRUTURA.md](ESTRUTURA.md).
+```bash
+docker-compose up --build
+```
+
+O banco PostgreSQL e a aplicação sobem juntos. As variáveis de ambiente devem ser configuradas no `docker-compose.yaml` ou em um arquivo `.env`.
+
+---
+
+## Testes
+
+```bash
+python manage.py test
+```
+
+---
+
+## Autor
+
+**Matheus Ribeiro** — Desenvolvedor Fullstack
+
+- GitHub: [MatheusSlvRibeiro](https://github.com/MatheusSlvRibeiro)
+- LinkedIn: [matheusslvribeiro](https://www.linkedin.com/in/matheusslvribeiro/)
