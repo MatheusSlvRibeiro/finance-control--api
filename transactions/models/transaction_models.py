@@ -1,7 +1,6 @@
 from django.db import models
 from core.mixins.models import BaseModel
 from django.utils import timezone
-from categories.models.category_models import CategoriesList
 
 class Transaction(BaseModel):
     description = models.CharField(
@@ -9,10 +8,13 @@ class Transaction(BaseModel):
         verbose_name='Descrição',
         blank=False
     )
-    category = models.CharField(
-        max_length=30,
+    category = models.ForeignKey(
+        'categories.Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='transactions',
         verbose_name='Categoria',
-        choices=CategoriesList.choices,
     )
     value = models.DecimalField(
         max_digits=12,

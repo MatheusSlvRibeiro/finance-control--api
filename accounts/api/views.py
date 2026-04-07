@@ -11,7 +11,6 @@ from core.mixins.viewset_helpers import swagger_viewset_methods
 from accounts.models.account_models import Account
 
 class AccountViewSet(
-    CreateAllowAnyMixin,
     CreateSerializerMixin,
     viewsets.ModelViewSet
 ):
@@ -19,12 +18,16 @@ class AccountViewSet(
     queryset = Account.objects.none()
     serializer_class = AccountSerializer
     create_serializer_class = AccountCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Account.objects.filter(
             user=self.request.user,
             deleted_at__isnull=True
         )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     def get_serializer_class(self):
         if self.action in ('update', 'partial_update'):
