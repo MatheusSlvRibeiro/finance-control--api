@@ -14,6 +14,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_yasg',
     'rest_framework',
+    'django_filters',
 
     # Local apps
     'users',
