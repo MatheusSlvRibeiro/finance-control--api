@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+export DJANGO_SETTINGS_MODULE=backend.settings.production
+
+echo "=== Settings: $DJANGO_SETTINGS_MODULE ==="
+echo "=== Database URL: ${DATABASE_URL:0:40}... ==="
+
 echo "=== Running migrations ==="
 python manage.py migrate --noinput
 
